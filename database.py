@@ -20,9 +20,15 @@ def init_db():
 def connect():
     return sqlite3.connect(DATABASE)
 
-def get_documents():
+def get_documents(limit=10):
+    """获取最近编辑的文档列表"""
     with closing(connect()) as conn:
-        cursor = conn.execute('SELECT id, title, created_at, updated_at FROM documents')
+        cursor = conn.execute('''
+            SELECT id, title, created_at, updated_at
+            FROM documents
+            ORDER BY updated_at DESC
+            LIMIT ?
+        ''', (limit,))
         return [
             {'id': row[0], 'title': row[1],
              'created_at': row[2], 'updated_at': row[3]}

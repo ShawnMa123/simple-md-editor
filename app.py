@@ -17,7 +17,8 @@ def index():
 # 获取文档列表
 @app.route('/api/documents', methods=['GET'])
 def list_documents():
-    return jsonify(db.get_documents())
+    # 获取最近编辑的10个文档
+    return jsonify(db.get_documents(limit=10))
 
 
 # 获取单篇文档
@@ -29,18 +30,46 @@ def get_document(doc_id):
     return jsonify({'error': 'Document not found'}), 404
 
 
+import re
+
+# 清理文件名函数
+def clean_filename(filename):
+    # 移除非法字符
+    cleaned = re.sub(r'[\\/*?:"<>|]', '', filename)
+    # 替换空格为下划线
+    cleaned = cleaned.replace(' ', '_')
+    # 限制文件名长度
+    return cleaned[:50] if len(cleaned) > 50 else cleaned
+
 # 保存文档
 @app.route('/api/documents/<int:doc_id>', methods=['POST'])
 def save_document(doc_id):
     data = request.get_json()
-    title = data.get('title')
+    title = data.get('title') or "Untitled"
     content = data.get('content')
+
+    # 确保documents目录存在
+    documents_dir = os.path.join(app.root_path, 'documents')
+    if not os.path.exists(documents_dir):
+        os.makedirs(documents_dir)
 
     if doc_id == 0:  # 新建文档
         doc_id = db.create_document(title, content)
+        # 清理文件名
+        safe_filename = clean_filename(title)
+        # 保存到文件系统
+        file_path = os.path.join(documents_dir, f'{safe_filename}_{doc_id}.md')
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
         return jsonify({'id': doc_id}), 201
     else:  # 更新文档
         if db.update_document(doc_id, title, content):
+            # 清理文件名
+            safe_filename = clean_filename(title)
+            # 保存到文件系统
+            file_path = os.path.join(documents_dir, f'{safe_filename}_{doc_id}.md')
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
             return jsonify({'success': True}), 200
         return jsonify({'error': 'Save failed'}), 500
 
