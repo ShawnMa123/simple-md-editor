@@ -1,0 +1,23 @@
+/* 覆盖Editor.md默认样式 */
+.editormd {
+    border: none;
+}
+
+/* 工具栏优化 */
+.editormd .editormd-toolbar {
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+    padding: 5px 10px;
+}
+
+/* 编辑器区域 */
+.editormd-edit-area {
+    padding: 20px;
+    background: white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+}
+
+/* 预览区域 */
+.editormd-preview-theme-dark {
+    background: #f8f9fa;
+}
