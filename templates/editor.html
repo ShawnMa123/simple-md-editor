@@ -40,11 +40,32 @@
             color: white;
             height: 100%;
             overflow-y: auto;
+            transition: width 0.3s ease;
+        }
+        
+        .sidebar.collapsed {
+            width: 50px;
+        }
+        
+        .sidebar.collapsed .document-title,
+        .sidebar.collapsed .document-date,
+        .sidebar.collapsed h2 {
+            display: none;
+        }
+        
+        .sidebar.collapsed .btn-new-doc span {
+            display: none;
+        }
+        
+        .sidebar.collapsed .btn-new-doc::after {
+            content: "+";
+            font-size: 20px;
         }
 
         .sidebar-header {
             padding: 20px;
             border-bottom: 1px solid #34495e;
+            position: relative;
         }
 
         .btn-new-doc {
@@ -58,6 +79,17 @@
             cursor: pointer;
             font-size: 16px;
             margin-top: 10px;
+        }
+
+        .toggle-sidebar {
+            position: absolute;
+            top: 20px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
         }
 
         .documents-list {
@@ -144,38 +176,6 @@
             gap: 10px;
         }
         
-        .export-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        
-        .export-options {
-            display: none;
-            position: absolute;
-            background-color: #f9f9f9;
-            min-width: 100px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .export-options a {
-            color: black;
-            padding: 8px 12px;
-            text-decoration: none;
-            display: block;
-            font-size: 14px;
-        }
-        
-        .export-options a:hover {
-            background-color: #f1f1f1;
-        }
-        
-        .export-dropdown:hover .export-options {
-            display: block;
-        }
-        
         .btn-export {
             padding: 8px 15px;
             background-color: #9b59b6;
@@ -184,7 +184,7 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         /* 响应式布局 */
         @media (max-width: 768px) {
             .sidebar {
@@ -205,10 +205,11 @@
 <body>
     <div class="app-container">
         <!-- 文档列表侧边栏 -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>Markdown Editor</h2>
                 <button class="btn-new-doc" id="new-doc-button">+ New Document</button>
+                <button class="toggle-sidebar" id="toggle-sidebar">◀</button>
             </div>
             <ul class="documents-list" id="documents-list"></ul>
         </div>
@@ -229,13 +230,8 @@
                 <span id="save-status">Saved</span>
                 <div class="footer-buttons">
                     <button class="btn-save" id="save-button">Save</button>
-                    <div class="export-dropdown">
-                        <button class="btn-export">Export</button>
-                        <div class="export-options">
-                            <a href="#" data-format="html">HTML</a>
-                            <a href="#" data-format="pdf">PDF</a>
-                        </div>
-                    </div>
+                    <button class="btn-export" id="export-html">Export HTML</button>
+                    <button class="btn-export" id="export-pdf">Export PDF</button>
                 </div>
             </div>
         </div>
@@ -244,11 +240,16 @@
     <!-- 使用CDN引入依赖库 -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/editor.md@1.5.0/editormd.min.js"></script>
+    <!-- 引入jsPDF库用于PDF导出 -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <!-- 引入html2canvas库用于HTML转PDF -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
     <script>
         // 当前文档ID
         let currentDocId = 0;
         let editor;
+        let isSidebarCollapsed = false;
 
         $(document).ready(function() {
             // 初始化编辑器
@@ -318,6 +319,24 @@
             // 保存按钮事件
             $("#save-button").click(saveDocument);
 
+            // 导出HTML按钮事件
+            $("#export-html").click(exportHTML);
+            
+            // 导出PDF按钮事件
+            $("#export-pdf").click(exportPDF);
+            
+            // 侧边栏切换按钮事件
+            $("#toggle-sidebar").click(function() {
+                isSidebarCollapsed = !isSidebarCollapsed;
+                if (isSidebarCollapsed) {
+                    $("#sidebar").addClass("collapsed");
+                    $(this).html("▶");
+                } else {
+                    $("#sidebar").removeClass("collapsed");
+                    $(this).html("◀");
+                }
+            });
+
             // 文档标题输入框事件
             $("#doc-title").on("input", function() {
                 updateSaveStatus("Unsaved changes");
@@ -327,42 +346,6 @@
             editor.on("change", function() {
                 updateSaveStatus("Unsaved changes");
             });
-        });
-        
-        // 导出功能
-        $(document).on('click', '.export-options a', function(e) {
-            e.preventDefault();
-            const format = $(this).data('format');
-            const title = $("#doc-title").val() || "Untitled";
-            const content = editor.getMarkdown();
-            
-            if (format === 'html') {
-                // 导出HTML
-                const htmlContent = editor.getHTML();
-                const blob = new Blob([htmlContent], {type: 'text/html'});
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.html`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            } else if (format === 'pdf') {
-                // 导出PDF
-                const htmlContent = editor.getHTML();
-                html2canvas(document.getElementById('editor-container')).then(canvas => {
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-                    const imgProps = pdf.getImageProperties(imgData);
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                    
-                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                    pdf.save(`${title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
-                });
-            }
         });
 
         // 加载文档列表
@@ -487,6 +470,40 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 100);
+        }
+        
+        // 导出HTML
+        function exportHTML() {
+            const title = $("#doc-title").val() || "Untitled";
+            // 导出HTML
+            const htmlContent = editor.getHTML();
+            const blob = new Blob([htmlContent], {type: 'text/html'});
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // 导出PDF
+        function exportPDF() {
+            const title = $("#doc-title").val() || "Untitled";
+            // 导出PDF
+            const htmlContent = editor.getHTML();
+            html2canvas(document.getElementById('editor-container')).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`${title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+            });
         }
 
         // 更新保存状态文本
