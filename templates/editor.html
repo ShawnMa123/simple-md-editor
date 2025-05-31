@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Markdown Editor</title>
+
+    <!-- 使用CDN引入Editor.md相关资源 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/editor.md@1.5.0/css/editormd.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --sidebar-width: 250px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100%;
+        }
+
+        /* 文档列表侧边栏 */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #2c3e50;
+            color: white;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .btn-new-doc {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        .documents-list {
+            list-style: none;
+            padding: 10px 0;
+        }
+
+        .document-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .document-item:hover {
+            background-color: #34495e;
+        }
+
+        .document-item.active {
+            background-color: var(--primary-color);
+        }
+
+        /* 主编辑器区域 */
+        .main-editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .editor-header {
+            padding: 10px 20px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #doc-title {
+            width: 100%;
+            padding: 10px;
+            font-size: 20px;
+            border: none;
+            outline: none;
+            font-weight: bold;
+        }
+
+        #editor-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #markdown-editor {
+            width: 100%;
+            height: 100%;
+        }
+
+        .editor-footer {
+            padding: 10px 20px;
+            background-color: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-save {
+            padding: 8px 15px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #save-status {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        /* 响应式布局 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 50px;
+            }
+
+            .sidebar .document-title {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 文档列表侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Markdown Editor</h2>
+                <button class="btn-new-doc" id="new-doc-button">+ New Document</button>
+            </div>
+            <ul class="documents-list" id="documents-list"></ul>
+        </div>
+
+        <!-- 主编辑器区域 -->
+        <div class="main-editor">
+            <div class="editor-header">
+                <input type="text" id="doc-title" placeholder="Document Title">
+            </div>
+
+            <div class="editor-body" id="editor-container">
+                <div id="markdown-editor">
+                    <textarea style="display:none;"># Welcome to Markdown Editor</textarea>
+                </div>
+            </div>
+
+            <div class="editor-footer">
+                <span id="save-status">Saved</span>
+                <button class="btn-save" id="save-button">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 使用CDN引入依赖库 -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/editor.md@1.5.0/editormd.min.js"></script>
+
+    <script>
+        // 当前文档ID
+        let currentDocId = 0;
+        let editor;
+
+        $(document).ready(function() {
+            // 初始化编辑器
+            editor = editormd("markdown-editor", {
+                path: "https://cdn.jsdelivr.net/npm/editor.md@1.5.0/lib/",
+                height: "100%",
+                saveHTMLToTextarea: true,
+                tex: true,
+                imageUpload: true,
+                imageFormats: ["jpg", "jpeg", "gif", "png", "bmp", "webp"],
+                imageUploadURL: "/api/upload",
+                toolbarIcons: function() {
+                    return [
+                        "undo", "redo", "|",
+                        "bold", "del", "italic", "quote", "|",
+                        "h1", "h2", "h3", "h4", "h5", "h6", "|",
+                        "list-ul", "list-ol", "hr", "|",
+                        "link", "reference-link", "image", "code", "preformatted-text",
+                        "code-block", "table", "datetime", "html-entities", "|",
+                        "watch", "preview", "fullscreen"
+                    ]
+                }
+            });
+
+            // 加载文档列表
+            loadDocuments();
+
+            // 新建文档按钮事件
+            $("#new-doc-button").click(newDocument);
+
+            // 保存按钮事件
+            $("#save-button").click(saveDocument);
+
+            // 文档标题输入框事件
+            $("#doc-title").on("input", function() {
+                updateSaveStatus("Unsaved changes");
+            });
+
+            // 编辑器内容变化事件
+            editor.on("change", function() {
+                updateSaveStatus("Unsaved changes");
+            });
+        });
+
+        // 加载文档列表
+        function loadDocuments() {
+            $.get("/api/documents", function(data) {
+                const docList = $("#documents-list");
+                docList.empty();
+
+                if (data.length > 0) {
+                    // 默认加载第一个文档
+                    currentDocId = data[0].id;
+                    $("#doc-title").val(data[0].title);
+                    loadDocumentContent(currentDocId);
+
+                    // 创建文档项
+                    data.forEach(doc => {
+                        const docItem = $(`
+                            <li class="document-item ${doc.id === currentDocId ? 'active' : ''}" data-id="${doc.id}">
+                                <span class="document-title">${doc.title}</span>
+                                <span class="document-date">${new Date(doc.updated_at).toLocaleDateString()}</span>
+                            </li>
+                        `);
+                        docItem.click(function() {
+                            $(".document-item").removeClass("active");
+                            $(this).addClass("active");
+
+                            if (currentDocId != doc.id) {
+                                // 提示用户保存当前文档（如果已修改）
+                                saveDocument();
+
+                                // 加载新文档
+                                currentDocId = doc.id;
+                                $("#doc-title").val(doc.title);
+                                loadDocumentContent(currentDocId);
+                                updateSaveStatus("Saved");
+                            }
+                        });
+                        docList.append(docItem);
+                    });
+                } else {
+                    // 没有任何文档，自动创建一个
+                    newDocument();
+                }
+            }).fail(function() {
+                alert("Error loading documents");
+            });
+        }
+
+        // 加载文档内容
+        function loadDocumentContent(docId) {
+            $.get(`/api/documents/${docId}`, function(data) {
+                editor.setMarkdown(data.content);
+            }).fail(function() {
+                alert(`Error loading document ${docId}`);
+            });
+        }
+
+        // 创建新文档
+        function newDocument() {
+            // 提示用户保存当前文档（如果已修改）
+            saveDocument();
+
+            currentDocId = 0; // 0表示新文档
+            $("#doc-title").val("Untitled");
+            editor.setMarkdown("# New Document\n\nStart writing here...");
+            updateSaveStatus("New document - save to create");
+
+            // 滚动到标题输入框
+            $("#doc-title")[0].scrollIntoView({ behavior: "smooth", block: "center" });
+            $("#doc-title").select();
+        }
+
+        // 保存文档
+        function saveDocument() {
+            if (!editor || !currentDocId) return;
+
+            const title = $("#doc-title").val() || "Untitled";
+            const content = editor.getMarkdown();
+
+            $.ajax({
+                url: `/api/documents/${currentDocId}`,
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ title, content }),
+                success: function(data) {
+                    if (data.id) {
+                        // 如果这是一个新文档，更新ID并重新加载文档列表
+                        currentDocId = data.id;
+                        loadDocuments();
+                    }
+                    updateSaveStatus(`Saved at ${new Date().toLocaleTimeString()}`);
+                },
+                error: function() {
+                    alert("Error saving document");
+                    updateSaveStatus("Save failed");
+                }
+            });
+        }
+
+        // 更新保存状态文本
+        function updateSaveStatus(text) {
+            $("#save-status").text(text);
+        }
+    </script>
+</body>
+</html>
