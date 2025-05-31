@@ -28,6 +28,8 @@ A lightweight, feature-rich Markdown editor with real-time preview, file managem
 - **Backend**:
   - Python Flask
   - SQLite database
+- **Python**: 3.9+
+- **Flask**: 2.0.2
 - **Dependencies**: See requirements.txt
 
 ## Installation & Running
@@ -42,7 +44,9 @@ cd simple-md-editor
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate    # Windows
+source venv/bin/activate  # Windows (if using Git Bash)
+venv\Scripts\activate.bat  # Windows Command Prompt
+venv\Scripts\Activate.ps1  # Windows PowerShell
 ```
 
 3. Install dependencies:
@@ -58,6 +62,12 @@ python app.py
 5. Open your browser and visit:
 ```
 http://localhost:5000
+```
+
+### Docker Deployment
+```bash
+docker build -t markdown-editor .
+docker run -d -p 5000:5000 markdown-editor
 ```
 
 ## Usage Guide
@@ -83,5 +93,17 @@ http://localhost:5000
    - Click "◀" button to collapse/expand sidebar
    - Recent documents appear in the sidebar
 
+## Contributing
+Contributions are welcome! Please follow these steps:
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'Add some feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a pull request
+
+## Reporting Issues
+Please use the [GitHub Issue Tracker](https://github.com/ShawnMa123/simple-md-editor/issues) to report any problems or suggest enhancements.
+
 ## License
+This project is licensed under the [MIT License](LICENSE)
 
